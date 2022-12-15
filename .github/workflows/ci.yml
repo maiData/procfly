@@ -17,6 +17,10 @@ jobs:
     if: github.event_name == 'push'
     steps:
     - uses: actions/checkout@v3
+    - run: |
+        echo "ref: ${{ github.ref_name }}"
+        echo "after: ${{ github.event.after }}"
+        echo "before: ${{ github.event.before }}"
     - uses: actions/cache@v3
       with:
         path: gravel/cache.json
@@ -41,11 +45,6 @@ jobs:
         restore-keys: |
           ${{ github.event.pull_request.head.ref }}
           ${{ github.event.pull_request.base.ref }}-${{ github.event.pull_request.base.sha }}
-    
-    - uses: actions/checkout@v3
-      with:
-        ref: ${{ github.event.pull_request.head.sha }}
-        path: head
     - uses: hashicorp/setup-golang@v1
       with: { version-file: go.mod }
     - run: go install github.com/emm035/gravel/cmd/gravel@latest
