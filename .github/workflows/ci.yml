@@ -24,10 +24,12 @@ jobs:
         key: ${{ github.event.base_ref }}-${{ github.event.after }}
         restore-keys: |
           ${{ github.event.base_ref }}-${{ github.event.before }}
-    - uses: actions/setup-go@v3
-      with:
-        cache: true
+    - uses: hashicorp/setup-golang@v1
+      with: { version-file: go.mod }
     - run: go install github.com/emm035/gravel/cmd/gravel@latest
+    - run: |
+        echo "$PATH"
+        go env
     - run: gravel build
 
 
@@ -50,8 +52,7 @@ jobs:
       with:
         ref: ${{ github.event.pull_request.head.sha }}
         path: head
-    - uses: actions/setup-go@v3
-      with:
-          cache: true
+    - uses: hashicorp/setup-golang@v1
+      with: { version-file: go.mod }
     - run: go install github.com/emm035/gravel/cmd/gravel@latest
     - run: gravel build
