@@ -14,7 +14,7 @@ jobs:
   main_commit_build:
     name: Build main branch commit
     runs-on: ubuntu-22.04
-    if: ${{ github.event.type == 'commit' }}
+    if: github.event_name == 'push'
     steps:
     - uses: actions/checkout@v3
     - uses: actions/cache@v3
@@ -32,7 +32,7 @@ jobs:
   pr_build:
     name: Build PR
     runs-on: ubuntu-22.04
-    if: ${{ github.event.type == 'pull_request' }}
+    if: github.event_name == 'pull_request'
     steps:
     - uses: actions/checkout@v3
     - uses: actions/cache@v3
