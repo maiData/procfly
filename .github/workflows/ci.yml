@@ -21,15 +21,12 @@ jobs:
       with:
         path: |
           gravel
-        key: ${{ github.event.base_ref }}-${{ github.event.after }}
+        key: ${{ github.ref_name }}-${{ github.event.after }}
         restore-keys: |
-          ${{ github.event.base_ref }}-${{ github.event.before }}
+          ${{ github.ref_name }}-${{ github.event.before }}
     - uses: hashicorp/setup-golang@v1
       with: { version-file: go.mod }
     - run: go install github.com/emm035/gravel/cmd/gravel@latest
-    - run: |
-        echo "$PATH"
-        go env
     - run: gravel build
 
 
