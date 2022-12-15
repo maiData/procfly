@@ -1,0 +1,14 @@
+---
+template_files:
+  nats.conf: templates/nats.conf
+
+templates:
+  example.env: |
+    SERVER={{.ServerName}}
+
+procfile:
+  nats: nats-server -js -m 8222 -c nats.conf
+  metrics: prometheus-nats-exporter -port 9222 -varz -channelz -connz -subz -serverz -routez http://localhost:8222
+
+on_config_change:
+  nats: { run: nats-server --signal reload=/var/run/nats-server.pid }
