@@ -19,11 +19,9 @@ jobs:
     - uses: actions/checkout@v3
     - uses: actions/cache@v3
       with:
-        path: |
-          gravel
+        path: gravel/cache.json
         key: ${{ github.ref_name }}-${{ github.event.after }}
-        restore-keys: |
-          ${{ github.ref_name }}-${{ github.event.before }}
+        restore-keys: ${{ github.ref_name }}-${{ github.event.before }}
     - uses: hashicorp/setup-golang@v1
       with: { version-file: go.mod }
     - run: go install github.com/emm035/gravel/cmd/gravel@latest
@@ -38,8 +36,7 @@ jobs:
     - uses: actions/checkout@v3
     - uses: actions/cache@v3
       with:
-        path: |
-          gravel
+        path: gravel/cache.json
         key: ${{ github.event.pull_request.head.ref }}-${{ github.event.pull_request.head.ref }}
         restore-keys: |
           ${{ github.event.pull_request.head.ref }}
