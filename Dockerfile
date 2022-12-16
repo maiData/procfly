@@ -5,5 +5,5 @@ RUN go install .
 
 FROM gcr.io/distroless/base:debug
 WORKDIR /
-ENTRYPOINT [ "procfly" ]
+ENTRYPOINT [ "procfly", "run" ]
 COPY --from=build /go/bin/procfly /bin/procfly

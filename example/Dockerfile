@@ -12,14 +12,9 @@ RUN go install .
 
 FROM busybox:1.35-glibc as busybox
 
-FROM gcr.io/distroless/base
+FROM emm035/procfly:latest
 
 COPY --from=nats /nats-server /bin/nats-server
 COPY --from=nats-metrics /prometheus-nats-exporter /bin/prometheus-nats-exporter
 
-WORKDIR /
-ENTRYPOINT [ "procfly" ]
-
-COPY --from=procfly /go/bin/procfly /bin/procfly
-
-COPY example /
+COPY . /
