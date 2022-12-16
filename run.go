@@ -14,6 +14,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type ProcflyFile struct {
+	InlineTemplates map[string]string          `yaml:"templates"`
+	TemplateFiles   map[string]string          `yaml:"template_files"`
+	Procfile        map[string]process.Command `yaml:"procfile"`
+	OnConfigChange  map[string]process.Command `yaml:"on_config_change"`
+}
+
 type RunCmd struct {
 	ProcflyDir string `arg:"" name:"procfly-dir" type:"existingFile" default:"."`
 }

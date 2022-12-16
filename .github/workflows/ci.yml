@@ -42,11 +42,15 @@ jobs:
 
     - run: gravel build --version.strategy=date
 
+    - uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_HUB_USR }}
+        password: ${{ secrets.DOCKER_HUB_PAT }}
+
     - uses: docker/build-push-action@v3
       with:
-        push: false
-        tags: |
-          emm035/procfly:latest
+        push: true
+        tags: emm035/procfly:latest
 
     - uses: stefanzweifel/git-auto-commit-action@v4.16.0
       if: github.event_name == 'push' || github.event.pull_request.merged
