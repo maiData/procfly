@@ -3,6 +3,7 @@ package process
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -24,8 +25,17 @@ type OnChange struct {
 }
 
 type Supervisor interface {
+	RegisterProcess(string, Command)
+	RegisterReload(string, Command)
+	// Run all of the supervisor's registered
+	// commands
 	Run() error
+	// Run all of the supervisor's registered
+	// reload scripts
 	Reload() error
+	// Log a message with the given prefix, using
+	// the supervisor's multiplexed (prefixed) writer
+	Log(name, message string)
 }
 
 type svisor struct {
@@ -38,22 +48,31 @@ type svisor struct {
 	proc map[string]*exec.Cmd
 }
 
-func NewSupervisor(ctx context.Context, cmds, rlds map[string]Command) Supervisor {
-	maxlen := 0
-	for name := range cmds {
-		if len(name) > maxlen {
-			maxlen = len(name)
-		}
-	}
-
+func NewSupervisor(ctx context.Context) Supervisor {
 	return &svisor{
 		root: ctx,
-		sout: NewMuxWriter(os.Stdout, maxlen),
+		sout: NewMuxWriter(os.Stdout),
 		ctxs: make(map[string]context.Context),
-		cmds: cmds,
-		rlds: rlds,
+		cmds: make(map[string]Command),
+		rlds: make(map[string]Command),
 		proc: make(map[string]*exec.Cmd),
 	}
+}
+
+func (sv *svisor) RegisterProcess(name string, cmd Command) {
+	// We can pre-register known names to reduce the
+	// chances of the log prefix being resized during
+	// execution of the processes.
+	sv.sout.RegisterName(name)
+	sv.cmds[name] = cmd
+}
+
+func (sv *svisor) RegisterReload(name string, cmd Command) {
+	// We can pre-register known names to reduce the
+	// chances of the log prefix being resized during
+	// execution of the processes.
+	sv.sout.RegisterName("reload_" + name)
+	sv.rlds[name] = cmd
 }
 
 func (sv *svisor) Run() error {
@@ -184,4 +203,8 @@ func (sv *svisor) Reload() error {
 		return nil
 	}
 	return err
+}
+
+func (sv *svisor) Log(name, message string) {
+	fmt.Fprintln(sv.sout.Writer(name), message)
 }

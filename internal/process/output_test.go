@@ -1,35 +1,28 @@
 package process_test
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/emm035/procfly/internal/process"
 )
 
-func ExampleMuxWriterFactory() {
-	pwf := process.NewMuxWriter(os.Stdout, 1)
-	prw := pwf.Writer("a")
+func ExampleMuxWriter() {
+	pwf := process.NewMuxWriter(os.Stdout)
 
-	_, err := prw.Write([]byte("bc\ndef"))
-	if err != nil {
-		return
-	}
+	prw1 := pwf.Writer("a")
+	fmt.Fprint(prw1, "bc\ndef")
+	fmt.Fprintln(prw1, "ghi")
 
-	_, err = prw.Write([]byte("ghi\n"))
-	if err != nil {
-		return
-	}
+	prw2 := pwf.Writer("ab")
+	fmt.Fprintln(prw2, "jkl\nmno")
 
-	prw = pwf.Writer("b")
-
-	_, err = prw.Write([]byte("jkl\nmno\n"))
-	if err != nil {
-		return
-	}
+	fmt.Fprintln(prw1, "pqr")
 
 	// Output:
 	// a | bc
 	// a | defghi
-	// b | jkl
-	// b | mno
+	// ab | jkl
+	// ab | mno
+	// a  | pqr
 }

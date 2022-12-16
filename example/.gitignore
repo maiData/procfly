@@ -1,2 +1,3 @@
 /example.env
 /nats.conf
+/nats-server.pid

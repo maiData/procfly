@@ -8,7 +8,10 @@ templates:
 
 procfile:
   nats: nats-server -js -m 8222 -c nats.conf
-  metrics: prometheus-nats-exporter -port 9222 -varz -channelz -connz -subz -serverz -routez http://localhost:8222
+  metrics: >-
+    prometheus-nats-exporter -port 9222
+    -varz -channelz -connz -subz -serverz -routez
+    http://localhost:8222
 
 reload:
-  nats: nats-server --signal reload=/var/run/nats-server.pid
+  nats: nats-server --signal reload=nats-server.pid

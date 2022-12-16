@@ -1,26 +1,35 @@
-package env
+package render
 
 import (
 	"context"
 	"os"
 	"sort"
-	"time"
 
 	"github.com/emm035/procfly/internal/privnet"
 )
 
-type FlyEnv struct {
+type Vars struct {
+	Fly FlyVars
+}
+
+func LoadVars() (env Vars, err error) {
+	env.Fly, err = loadFlyEnv()
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+type FlyVars struct {
 	Host           string
 	AppName        string
 	Region         string
 	GatewayRegions []string
 	ServerName     string
-	Timestamp      time.Time
 }
 
-func loadFly() (env FlyEnv, err error) {
-	env.Timestamp = time.Now()
-
+func loadFlyEnv() (env FlyVars, err error) {
 	env.ServerName = os.Getenv("FLY_ALLOC_ID")
 	if env.ServerName == "" {
 		env.ServerName = "local"

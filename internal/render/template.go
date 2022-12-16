@@ -1,37 +1,47 @@
 package render
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"html/template"
+	"io"
 	"os"
+	"time"
 
 	"github.com/emm035/procfly/internal/file"
 )
 
-func InlineTemplates(paths file.Paths, tmpls map[string]string, values any) error {
-	for file, tmpl := range tmpls {
-		if err := renderFile(paths.Rel(file), tmpl, values); err != nil {
-			return err
-		}
-	}
-	return nil
+var funcs = template.FuncMap{
+	"timestamp": time.Now,
 }
 
-func TemplateFiles(paths file.Paths, tmpls map[string]string, values any) error {
+func InlineTemplates(paths file.Paths, tmpls map[string]string, values any) (string, error) {
+	hash := sha256.New()
+	for file, tmpl := range tmpls {
+		if err := renderFile(hash, paths.Rel(file), tmpl, values); err != nil {
+			return "", nil
+		}
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+func TemplateFiles(paths file.Paths, tmpls map[string]string, values any) (string, error) {
+	hash := sha256.New()
 	for file, tmplf := range tmpls {
 		tmpl, err := os.ReadFile(paths.Rel(tmplf))
 		if err != nil {
-			return err
+			return "", err
 		}
 
-		if err := renderFile(paths.Rel(file), string(tmpl), values); err != nil {
-			return err
+		if err := renderFile(hash, paths.Rel(file), string(tmpl), values); err != nil {
+			return "", err
 		}
 	}
-	return nil
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-func renderFile(file, tmpl string, values any) error {
-	t, err := template.New(file).Parse(tmpl)
+func renderFile(hash io.Writer, file, tmpl string, values any) error {
+	t, err := template.New(file).Funcs(funcs).Parse(tmpl)
 	if err != nil {
 		return err
 	}
@@ -41,7 +51,7 @@ func renderFile(file, tmpl string, values any) error {
 		return err
 	}
 
-	if err := t.Execute(f, values); err != nil {
+	if err := t.Execute(io.MultiWriter(hash, f), values); err != nil {
 		return err
 	}
 
