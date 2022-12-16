@@ -4,11 +4,11 @@ template_files:
 
 templates:
   example.env: |
-    SERVER={{.ServerName}}
+    SERVER={{ .Fly.ServerName }}
 
 procfile:
   nats: nats-server -js -m 8222 -c nats.conf
   metrics: prometheus-nats-exporter -port 9222 -varz -channelz -connz -subz -serverz -routez http://localhost:8222
 
-on_config_change:
-  nats: { run: nats-server --signal reload=/var/run/nats-server.pid }
+reload:
+  nats: nats-server --signal reload=/var/run/nats-server.pid

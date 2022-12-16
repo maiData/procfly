@@ -2,6 +2,7 @@ package process
 
 import (
 	"fmt"
+	"os/exec"
 	"strings"
 )
 
@@ -47,4 +48,8 @@ func (c *Command) UnmarshalText(p []byte) error {
 
 func (c Command) MarshalText() ([]byte, error) {
 	return []byte(fmt.Sprintf("%s %s", c.Name, strings.Join(c.Args, " "))), nil
+}
+
+func (c Command) Exec() *exec.Cmd {
+	return exec.Command(c.Name, c.Args...)
 }

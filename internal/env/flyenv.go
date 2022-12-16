@@ -18,40 +18,36 @@ type FlyEnv struct {
 	Timestamp      time.Time
 }
 
-func Fly() (FlyEnv, error) {
-	host := "fly-local-6pn"
-	appName := os.Getenv("FLY_APP_NAME")
+func loadFly() (env FlyEnv, err error) {
+	env.Timestamp = time.Now()
 
-	var regions []string
-	var err error
+	env.ServerName = os.Getenv("FLY_ALLOC_ID")
+	if env.ServerName == "" {
+		env.ServerName = "local"
+	}
 
-	if appName != "" {
-		regions, err = privnet.GetRegions(context.Background(), appName)
-	} else {
-		// defaults for local exec
-		host = "localhost"
-		appName = "local"
-		regions = []string{"local"}
+	env.Region = os.Getenv("FLY_REGION")
+	if env.Region == "" {
+		env.Region = "local"
+	}
+
+	env.AppName = os.Getenv("FLY_APP_NAME")
+	if env.AppName == "" {
+		env.Host = "localhost"
+		env.AppName = "local"
+		env.GatewayRegions = []string{"local"}
+		return
+	}
+
+	env.Host = "fly-local-6pn"
+	if env.GatewayRegions, err = privnet.GetRegions(
+		context.Background(),
+		env.AppName,
+	); err != nil {
+		return
 	}
 
 	// easier to compare
-	sort.Strings(regions)
-
-	region := os.Getenv("FLY_REGION")
-	if region == "" {
-		region = "local"
-	}
-
-	vars := FlyEnv{
-		AppName:        appName,
-		Region:         region,
-		GatewayRegions: regions,
-		Host:           host,
-		ServerName:     os.Getenv("FLY_ALLOC_ID"),
-		Timestamp:      time.Now(),
-	}
-	if err != nil {
-		return FlyEnv{}, err
-	}
-	return vars, nil
+	sort.Strings(env.GatewayRegions)
+	return
 }

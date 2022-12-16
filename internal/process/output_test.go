@@ -6,8 +6,8 @@ import (
 	"github.com/emm035/procfly/internal/process"
 )
 
-func ExamplePrefixWriterFactory() {
-	pwf := process.NewPrefixWriterFactory(os.Stdout)
+func ExampleMuxWriterFactory() {
+	pwf := process.NewMuxWriter(os.Stdout, 1)
 	prw := pwf.Writer("a")
 
 	_, err := prw.Write([]byte("bc\ndef"))
@@ -20,14 +20,16 @@ func ExamplePrefixWriterFactory() {
 		return
 	}
 
+	prw = pwf.Writer("b")
+
 	_, err = prw.Write([]byte("jkl\nmno\n"))
 	if err != nil {
 		return
 	}
 
 	// Output:
-	// abc
-	// adefghi
-	// ajkl
-	// amno
+	// a | bc
+	// a | defghi
+	// b | jkl
+	// b | mno
 }
