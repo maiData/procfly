@@ -11,41 +11,38 @@ on:
     - main
 
 jobs:
-  main_commit_build:
-    name: Build main branch commit
+  build:
+    name: Build
     runs-on: ubuntu-22.04
-    if: github.event_name == 'push'
     steps:
     - uses: actions/checkout@v3
-    - run: |
-        echo "ref: ${{ github.ref_name }}"
-        echo "after: ${{ github.event.after }}"
-        echo "before: ${{ github.event.before }}"
-    - uses: actions/cache@v3
-      with:
-        path: gravel/cache.json
-        key: ${{ github.ref_name }}-${{ github.event.after }}
-        restore-keys: ${{ github.ref_name }}-${{ github.event.before }}
-    - uses: hashicorp/setup-golang@v1
-      with: { version-file: go.mod }
-    - run: go install github.com/emm035/gravel/cmd/gravel@latest
-    - run: gravel build
 
-
-  pr_build:
-    name: Build PR
-    runs-on: ubuntu-22.04
-    if: github.event_name == 'pull_request'
-    steps:
-    - uses: actions/checkout@v3
+    # Only used for pull requests
     - uses: actions/cache@v3
+      if: github.event_name == 'pull_request'
       with:
         path: gravel/cache.json
         key: ${{ github.event.pull_request.head.ref }}-${{ github.event.pull_request.head.ref }}
         restore-keys: |
           ${{ github.event.pull_request.head.ref }}
           ${{ github.event.pull_request.base.ref }}-${{ github.event.pull_request.base.sha }}
+
+    # Only used for pushes to main
+    - uses: actions/cache@v3
+      if: github.event_name == 'push'
+      with:
+        path: gravel/cache.json
+        key: ${{ github.ref_name }}-${{ github.event.after }}
+        restore-keys: ${{ github.ref_name }}-${{ github.event.before }}
+
     - uses: hashicorp/setup-golang@v1
       with: { version-file: go.mod }
+
     - run: go install github.com/emm035/gravel/cmd/gravel@latest
-    - run: gravel build
+
+    - run: gravel build --version.strategy=date
+
+    - uses: stefanzweifel/git-auto-commit-action@v4.16.0
+      if: github.event_name == 'push' || github.event.pull_request.merged
+      with:
+        commit_message: Update version files
