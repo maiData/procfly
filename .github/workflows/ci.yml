@@ -41,17 +41,14 @@ jobs:
 
     - run: go install github.com/emm035/gravel/cmd/gravel@latest
 
-    - run: gravel build --version.strategy=date
+    - run: gravel build
 
     - uses: docker/login-action@v2
       with:
         username: ${{ secrets.DOCKER_HUB_USR }}
         password: ${{ secrets.DOCKER_HUB_PAT }}
 
-    - uses: docker/build-push-action@v3
-      with:
-        push: true
-        tags: emm035/procfly:latest
+    - run: docker push -a
 
     - uses: stefanzweifel/git-auto-commit-action@v4.16.0
       if: github.event_name == 'push' || github.event.pull_request.merged

@@ -10,7 +10,7 @@ procfile:
   nats: nats-server -js -m 8222 -c nats.conf
   metrics: >-
     prometheus-nats-exporter -port 9222
-    -varz -channelz -connz -subz -serverz -routez
+    -varz -channelz -connz -subz -serverz -routez -jsz=all -prefix=nats
     http://localhost:8222
 
 reload:
