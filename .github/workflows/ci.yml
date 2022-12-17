@@ -47,7 +47,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - run: gravel build --docker.push
+    - run: gravel build -c gravel.yml --docker.push
 
     - uses: stefanzweifel/git-auto-commit-action@v4.16.0
       if: github.event_name == 'push' || github.event.pull_request.merged
