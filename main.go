@@ -2,11 +2,12 @@ package main
 
 import (
 	"github.com/alecthomas/kong"
+	"github.com/emm035/procfly/internal/cli"
 )
 
 type Cli struct {
-	Run     RunCmd     `name:"run" cmd:""`
-	Version VersionCmd `name:"version" cmd:""`
+	Run     cli.RunCmd     `name:"run" cmd:""`
+	Version cli.VersionCmd `name:"version" cmd:""`
 }
 
 func main() {
