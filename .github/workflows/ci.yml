@@ -43,8 +43,9 @@ jobs:
 
     - uses: docker/login-action@v2
       with:
-        username: ${{ secrets.DOCKER_HUB_USR }}
-        password: ${{ secrets.DOCKER_HUB_PAT }}
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
     - run: gravel build --docker.push
 
