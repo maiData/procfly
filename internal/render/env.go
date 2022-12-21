@@ -26,6 +26,8 @@ type FlyVars struct {
 	AppName        string
 	Region         string
 	GatewayRegions []string
+	IP             string
+	Peers          []string
 	ServerName     string
 }
 
@@ -54,6 +56,24 @@ func loadFlyEnv() (env FlyVars, err error) {
 		env.AppName,
 	); err != nil {
 		return
+	}
+
+	if ip, err := privnet.PrivateIPv6(); err != nil {
+		return env, err
+	} else {
+		env.IP = ip.String()
+	}
+
+	if ips, err := privnet.AllPeers(
+		context.Background(),
+		env.AppName,
+	); err != nil {
+		return env, err
+	} else {
+		env.Peers = make([]string, len(ips))
+		for i, ip := range ips {
+			env.Peers[i] = ip.String()
+		}
 	}
 
 	// easier to compare
