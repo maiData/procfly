@@ -4,11 +4,13 @@ import (
 	"context"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/emm035/procfly/internal/privnet"
 )
 
 type Vars struct {
+	Env EnvVars
 	Fly FlyVars
 }
 
@@ -18,7 +20,20 @@ func LoadVars() (env Vars, err error) {
 		return
 	}
 
+	env.Env = loadEnv()
 	return
+}
+
+type EnvVars map[string]string
+
+func loadEnv() EnvVars {
+	env := make(EnvVars)
+	for _, entry := range os.Environ() {
+		if key, value, ok := strings.Cut(entry, "="); ok {
+			env[key] = value
+		}
+	}
+	return env
 }
 
 type FlyVars struct {
