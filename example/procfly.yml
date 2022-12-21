@@ -7,7 +7,7 @@ templates:
     SERVER={{ .Fly.ServerName }}
 
 procfile:
-  nats: nats-server -js -m 8222 -c nats.conf
+  nats: nats-server -js -m {{.Env.NATS_HTTP_PORT}} -c nats.conf
   metrics: >-
     prometheus-nats-exporter -port 9222
     -varz -channelz -connz -subz -serverz -routez -jsz=all -prefix=nats

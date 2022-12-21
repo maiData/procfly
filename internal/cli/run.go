@@ -17,10 +17,10 @@ import (
 )
 
 type ProcflyFile struct {
-	InlineTemplates map[string]string          `yaml:"templates"`
-	TemplateFiles   map[string]string          `yaml:"template_files"`
-	Processes       map[string]process.Command `yaml:"procfile"`
-	Reloaders       map[string]process.Command `yaml:"reload"`
+	InlineTemplates map[string]string `yaml:"templates"`
+	TemplateFiles   map[string]string `yaml:"template_files"`
+	Processes       map[string]string `yaml:"procfile"`
+	Reloaders       map[string]string `yaml:"reload"`
 }
 
 type RunCmd struct {
@@ -60,11 +60,21 @@ func (cli *RunCmd) Run() error {
 		syscall.SIGINT, syscall.SIGKILL)
 	defer cancel()
 
+	cmds, err := render.Commands("cmd_", conf.Processes, e)
+	if err != nil {
+		return err
+	}
+
 	svisor := process.NewSupervisor(ctx)
-	for name, cmd := range conf.Processes {
+	for name, cmd := range cmds {
 		svisor.RegisterProcess(name, cmd)
 	}
-	for name, cmd := range conf.Reloaders {
+
+	reloaders, err := render.Commands("reload_", conf.Reloaders, e)
+	if err != nil {
+		return err
+	}
+	for name, cmd := range reloaders {
 		svisor.RegisterReload(name, cmd)
 	}
 
@@ -153,7 +163,7 @@ func validateTemplateNames(a, b map[string]string) error {
 	return nil
 }
 
-func validateReloaderNames(proc, rld map[string]process.Command) error {
+func validateReloaderNames(proc, rld map[string]string) error {
 	for k := range rld {
 		if _, ok := proc[k]; !ok {
 			return fmt.Errorf("reload: unknown proc: %s", k)
