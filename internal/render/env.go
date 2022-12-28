@@ -6,22 +6,34 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/emm035/procfly/internal/file"
 	"github.com/emm035/procfly/internal/privnet"
 )
 
 type Vars struct {
-	Env EnvVars
-	Fly FlyVars
+	Env     EnvVars
+	Fly     FlyVars
+	Procfly ProcflyVars
 }
 
-func LoadVars() (env Vars, err error) {
+func LoadVars(paths file.Paths) (env Vars, err error) {
 	env.Fly, err = loadFlyEnv()
 	if err != nil {
 		return
 	}
 
 	env.Env = loadEnv()
+
+	env.Procfly = ProcflyVars{
+		Root: paths.RootDir,
+		File: paths.ProcflyFile,
+	}
 	return
+}
+
+type ProcflyVars struct {
+	Root string
+	File string
 }
 
 type EnvVars map[string]string
@@ -29,6 +41,8 @@ type EnvVars map[string]string
 func loadEnv() EnvVars {
 	env := make(EnvVars)
 	for _, entry := range os.Environ() {
+		// There may be some duplicates between these values
+		// and those parsed into the fly config.
 		if key, value, ok := strings.Cut(entry, "="); ok {
 			env[key] = value
 		}

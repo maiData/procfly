@@ -11,7 +11,6 @@ import (
 	"github.com/emm035/procfly/internal/file"
 	"github.com/emm035/procfly/internal/process"
 	"github.com/emm035/procfly/internal/render"
-	"github.com/emm035/procfly/internal/util"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
 )
@@ -45,12 +44,23 @@ func (cli *RunCmd) Run() error {
 		return err
 	}
 
-	e, err := render.LoadVars()
+	vars, err := render.LoadVars(paths)
 	if err != nil {
 		return err
 	}
 
-	hash, err := renderTemplates(paths, conf, e)
+	rndr := render.NewRenderer(paths, vars)
+
+	if err := renderTemplatedFiles(rndr, conf); err != nil {
+		return err
+	}
+
+	cmds, err := rndr.Commands(conf.Processes)
+	if err != nil {
+		return err
+	}
+
+	reloaders, err := rndr.Commands(conf.Reloaders)
 	if err != nil {
 		return err
 	}
@@ -59,53 +69,57 @@ func (cli *RunCmd) Run() error {
 		os.Interrupt, os.Kill, syscall.SIGTERM,
 		syscall.SIGINT, syscall.SIGKILL)
 	defer cancel()
+	egrp, gctx := errgroup.WithContext(ctx)
 
-	cmds, err := render.Commands("cmd_", conf.Processes, e)
-	if err != nil {
-		return err
-	}
-
-	svisor := process.NewSupervisor(ctx)
+	// Create a process supervisor, registering
+	// all process & reload commands.
+	svisor := process.NewSupervisor(gctx)
 	for name, cmd := range cmds {
 		svisor.RegisterProcess(name, cmd)
-	}
-
-	reloaders, err := render.Commands("reload_", conf.Reloaders, e)
-	if err != nil {
-		return err
 	}
 	for name, cmd := range reloaders {
 		svisor.RegisterReload(name, cmd)
 	}
 
-	egrp, gctx := errgroup.WithContext(ctx)
+	// Run the supervisor and environment watcher.
+	// If either exits with an error, gctx will be
+	// cancelled, and the other should stop.
 	egrp.Go(svisor.Run)
-	egrp.Go(watchEnv(gctx, svisor, hash, paths, conf))
+	egrp.Go(watchEnv(gctx, svisor, paths, rndr, conf))
+
+	// Wait for something to fail out, or for a
+	// signal to be received, telling us to exit.
 	return egrp.Wait()
 }
 
-func watchEnv(ctx context.Context, svisor process.Supervisor, hash string, paths file.Paths, conf *ProcflyFile) func() error {
+func watchEnv(ctx context.Context, svisor process.Supervisor, paths file.Paths, renderer *render.Renderer, conf *ProcflyFile) func() error {
 	return func() error {
 		t := time.NewTicker(5 * time.Second)
 		defer t.Stop()
-		prev := hash
+		prev := renderer.Hash()
 
 		for {
 			select {
 			case <-ctx.Done():
 				return nil
 			case <-t.C:
-				vars, err := render.LoadVars()
-				if err != nil {
+				// We should periodically reload the rendering variables,
+				// and reset the renderer so its hash will be reset. This
+				// lets us figure out whether any configurations have
+				// been changed by an update to the vars
+				if vars, err := render.LoadVars(paths); err != nil {
+					return err
+				} else {
+					renderer.Reset(vars)
+				}
+
+				if err := renderTemplatedFiles(renderer, conf); err != nil {
 					return err
 				}
 
-				hash, err = renderTemplates(paths, conf, vars)
-				if err != nil {
-					return err
-				}
-
-				if hash == prev {
+				// If the hash of our templated files hasn't changed,
+				// we should skip running our reloaders.
+				if hash := renderer.Hash(); hash == prev {
 					continue
 				} else {
 					prev = hash
@@ -120,18 +134,16 @@ func watchEnv(ctx context.Context, svisor process.Supervisor, hash string, paths
 	}
 }
 
-func renderTemplates(paths file.Paths, conf *ProcflyFile, vars render.Vars) (string, error) {
-	inlinesHash, err := render.InlineTemplates(paths, conf.InlineTemplates, vars)
-	if err != nil {
-		return "", err
+func renderTemplatedFiles(renderer *render.Renderer, conf *ProcflyFile) error {
+	if err := renderer.InlineTemplates(conf.InlineTemplates); err != nil {
+		return err
 	}
 
-	filesHash, err := render.TemplateFiles(paths, conf.TemplateFiles, vars)
-	if err != nil {
-		return "", err
+	if err := renderer.TemplateFiles(conf.TemplateFiles); err != nil {
+		return err
 	}
 
-	return util.Hash(inlinesHash, filesHash)
+	return nil
 }
 
 func loadProcflyFile(file string) (*ProcflyFile, error) {
