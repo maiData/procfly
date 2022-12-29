@@ -5,9 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"hash"
-	"html/template"
 	"io"
 	"os"
+	"text/template"
 	"time"
 
 	"github.com/emm035/procfly/internal/file"
