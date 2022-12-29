@@ -46,6 +46,21 @@ func (r *Renderer) Reset(vars any) {
 	}
 }
 
+func (r *Renderer) Command(tmpl string) (process.Command, error) {
+	buf := new(bytes.Buffer)
+	cmd := new(process.Command)
+
+	if err := r.render(tmpl, false, buf); err != nil {
+		return *cmd, err
+	}
+
+	if err := cmd.UnmarshalText(buf.Bytes()); err != nil {
+		return *cmd, err
+	}
+
+	return *cmd, nil
+}
+
 func (r *Renderer) Commands(tmpls map[string]string) (map[string]process.Command, error) {
 	rendered := make(map[string]process.Command)
 	buf := new(bytes.Buffer)

@@ -16,8 +16,10 @@ import (
 )
 
 var (
-	ErrRunning    = errors.New("supervisor is running")
-	ErrNotRunning = errors.New("supervisor is not running")
+	ErrAlreadyRunning  = errors.New("supervisor is running")
+	ErrNotRunning      = errors.New("supervisor is not running")
+	ErrExitedWithCode  = errors.New("exited with error code")
+	ErrExitedWithError = errors.New("exited with error")
 )
 
 type OnChange struct {
@@ -25,6 +27,7 @@ type OnChange struct {
 }
 
 type Supervisor interface {
+	RegisterInit(string, Command)
 	RegisterProcess(string, Command)
 	RegisterReload(string, Command)
 	// Run all of the supervisor's registered
@@ -36,27 +39,36 @@ type Supervisor interface {
 	// Log a message with the given prefix, using
 	// the supervisor's multiplexed (prefixed) writer
 	Log(name, message string)
+	Logf(name, message string, args ...any)
 }
 
 type svisor struct {
-	root context.Context
-	sout MuxWriter
-	lock sync.Mutex
-	ctxs map[string]context.Context
-	cmds map[string]Command
-	rlds map[string]Command
-	proc map[string]*exec.Cmd
+	root  context.Context
+	sout  MuxWriter
+	lock  sync.Mutex
+	ctxs  map[string]context.Context
+	inits map[string]Command
+	cmds  map[string]Command
+	rlds  map[string]Command
 }
 
 func NewSupervisor(ctx context.Context) Supervisor {
 	return &svisor{
-		root: ctx,
-		sout: NewMuxWriter(os.Stdout),
-		ctxs: make(map[string]context.Context),
-		cmds: make(map[string]Command),
-		rlds: make(map[string]Command),
-		proc: make(map[string]*exec.Cmd),
+		root:  ctx,
+		sout:  NewMuxWriter(os.Stdout),
+		ctxs:  make(map[string]context.Context),
+		inits: make(map[string]Command),
+		cmds:  make(map[string]Command),
+		rlds:  make(map[string]Command),
 	}
+}
+
+func (sv *svisor) RegisterInit(name string, cmd Command) {
+	// We can pre-register known names to reduce the
+	// chances of the log prefix being resized during
+	// execution of the processes.
+	sv.sout.RegisterName("init_" + name)
+	sv.inits[name] = cmd
 }
 
 func (sv *svisor) RegisterProcess(name string, cmd Command) {
@@ -79,24 +91,39 @@ func (sv *svisor) Run() error {
 	if !sv.lock.TryLock() {
 		// If we can't acquire the lock, that means
 		// this supervisor is already running.
-		return ErrRunning
+		return ErrAlreadyRunning
 	} else {
 		defer sv.lock.Unlock()
 	}
 
-	egrp, gctx := errgroup.WithContext(sv.root)
+	if err := sv.runInits(); err != nil {
+		return err
+	}
+
+	return sv.runProcesses()
+}
+
+func (sv *svisor) runInits() error {
+	// Init commands should take < 10s
+	ctx, cancel := context.WithTimeout(sv.root, 10*time.Second)
+	defer cancel()
+
+	egrp, gctx := errgroup.WithContext(ctx)
+	for name, cmd := range sv.inits {
+		_cmd, _name := cmd, name
+		egrp.Go(sv.run(gctx, "init_"+_name, _cmd))
+	}
+	return egrp.Wait()
+}
+
+func (sv *svisor) runProcesses() error {
+	ctx, cancel := context.WithCancel(sv.root)
+	defer cancel()
+
+	egrp, gctx := errgroup.WithContext(ctx)
 	for name, cmd := range sv.cmds {
-		proc := cmd.Exec()
-		if err := sv.run(name, proc); err != nil {
-			return err
-		}
-
-		sv.proc[name] = proc
-		defer delete(sv.proc, name)
-
-		egrp.Go(func() error {
-			return sv.stop(gctx, proc)
-		})
+		_cmd, _name := cmd, name
+		egrp.Go(sv.withRestarts(gctx, _name, sv.run(gctx, _name, _cmd)))
 	}
 
 	if err := egrp.Wait(); !errors.Is(err, context.Canceled) {
@@ -105,7 +132,7 @@ func (sv *svisor) Run() error {
 	return nil
 }
 
-func (sv *svisor) run(name string, cmd *exec.Cmd) error {
+func (sv *svisor) setupStdout(name string, cmd *exec.Cmd) error {
 	pseu, term, err := pty.Open()
 	if err != nil {
 		return err
@@ -124,53 +151,91 @@ func (sv *svisor) run(name string, cmd *exec.Cmd) error {
 		Setctty: true,
 	}
 
-	return cmd.Start()
+	return nil
 }
 
-func (sv *svisor) stop(ctx context.Context, cmd *exec.Cmd) error {
-	if cmd.Process == nil {
-		return ErrNotRunning
+func (sv *svisor) withRestarts(ctx context.Context, name string, fn func() error) func() error {
+	return func() error {
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(1 * time.Second):
+				if err := fn(); errors.Is(err, ErrExitedWithCode) || errors.Is(err, ErrExitedWithError) {
+					sv.Logf("procfly", "Restarting %s after it exited with an error: %s", name, err.Error())
+					continue
+				}
+				return nil
+			}
+		}
 	}
+}
 
-	errc := make(chan error)
-	go func() {
+func (sv *svisor) run(ctx context.Context, name string, command Command) func() error {
+	return func() error {
+		cmd := command.Exec()
+
+		if err := sv.setupStdout(name, cmd); err != nil {
+			return err
+		}
+
+		if err := cmd.Start(); err != nil {
+			return err
+		}
+
+		if cmd.Process == nil {
+			return ErrNotRunning
+		}
+
+		procStateCh := make(chan *os.ProcessState)
+
+		go func() {
+			// Wait for the process to exit. Once it has, we can
+			// cancel the context that's waiting for it.
+			state, err := cmd.Process.Wait()
+			if err != nil {
+				close(procStateCh)
+			} else {
+				procStateCh <- state
+				close(procStateCh)
+			}
+		}()
+
 		select {
-		case errc <- nil:
-			return
 		case <-ctx.Done():
+			// We need to kill the process gracefully. Send an
+			// interrupt signal telling it to shut down.
+			if err := cmd.Process.Signal(os.Interrupt); err != nil {
+				return err
+			}
+		case state, ok := <-procStateCh:
+			// The process exited before we told it to. If it
+			// had a non-zero exit code, we should return an error
+			// stating that.
+			if !ok {
+				return ErrExitedWithError
+			} else if state.ExitCode() != 0 {
+				return fmt.Errorf("%s: %w %d", name, ErrExitedWithCode, cmd.ProcessState.ExitCode())
+			} else {
+				return nil
+			}
 		}
 
-		err := cmd.Process.Signal(os.Interrupt)
-		if errors.Is(err, os.ErrProcessDone) {
-			errc <- nil
-			return
-		}
-
-		timer := time.NewTimer(5 * time.Second)
 		select {
-		// Report ctx.Err() as the reason we interrupted the process...
-		case errc <- ctx.Err():
-			timer.Stop()
-			return
-		// ...but after killDelay has elapsed, fall back to a stronger signal.
-		case <-timer.C:
+		case <-time.After(5 * time.Second):
+			// The process is still running after 5 seconds, so
+			// we need to kill it more forcefully. If we're in this
+			// branch, that means the process is being killed, so we
+			// should ignore the error message from killing, and
+			// return the one from the context that caused it.
+			_ = cmd.Process.Kill()
+			return ctx.Err()
+		case <-procStateCh:
+			// Sending the signal managed to shut down the process
+			// gracefully. We can exit without an error.
+			return nil
 		}
-
-		// Wait still hasn't returned.
-		// Kill the process harder to make sure that it exits.
-		//
-		// Ignore any error: if cmd.Process has already terminated, we still
-		// want to send ctx.Err() (or the error from the Interrupt call)
-		// to properly attribute the signal that may have terminated it.
-		_ = cmd.Process.Kill()
-		errc <- err
-	}()
-
-	waitErr := cmd.Wait()
-	if interruptErr := <-errc; interruptErr != nil {
-		return interruptErr
 	}
-	return waitErr
 }
 
 func (sv *svisor) Reload() error {
@@ -185,15 +250,8 @@ func (sv *svisor) Reload() error {
 	egrp, gctx := errgroup.WithContext(ctx)
 
 	for name, cmd := range sv.rlds {
-		proc := cmd.Exec()
-		if err := sv.run("reload_"+name, proc); err != nil {
-			cancel()
-			return err
-		}
-
-		egrp.Go(func() error {
-			return sv.stop(gctx, proc)
-		})
+		_cmd, _name := cmd, name
+		egrp.Go(sv.run(gctx, "reload_"+_name, _cmd))
 	}
 
 	err := egrp.Wait()
@@ -207,4 +265,8 @@ func (sv *svisor) Reload() error {
 
 func (sv *svisor) Log(name, message string) {
 	fmt.Fprintln(sv.sout.Writer(name), message)
+}
+
+func (sv *svisor) Logf(name, message string, args ...any) {
+	fmt.Fprintf(sv.sout.Writer(name), message, args...)
 }

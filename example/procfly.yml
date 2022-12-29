@@ -6,7 +6,10 @@ templates:
   example.env: |
     SERVER={{ .Fly.ServerName }}
 
-procfile:
+init:
+  say_hi: echo "Hello World"
+
+processes:
   nats: nats-server -js -m {{.Env.NATS_HTTP_PORT}} -c {{.Procfly.Root}}/nats.conf
   metrics: >-
     prometheus-nats-exporter -port 9222

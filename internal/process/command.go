@@ -1,6 +1,7 @@
 package process
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -52,4 +53,8 @@ func (c Command) MarshalText() ([]byte, error) {
 
 func (c Command) Exec() *exec.Cmd {
 	return exec.Command(c.Name, c.Args...)
+}
+
+func (c Command) ExecContext(ctx context.Context) *exec.Cmd {
+	return exec.CommandContext(ctx, c.Name, c.Args...)
 }

@@ -18,7 +18,8 @@ import (
 type ProcflyFile struct {
 	InlineTemplates map[string]string `yaml:"templates"`
 	TemplateFiles   map[string]string `yaml:"template_files"`
-	Processes       map[string]string `yaml:"procfile"`
+	Init            map[string]string `yaml:"init"`
+	Processes       map[string]string `yaml:"processes"`
 	Reloaders       map[string]string `yaml:"reload"`
 }
 
@@ -55,6 +56,11 @@ func (cli *RunCmd) Run() error {
 		return err
 	}
 
+	inits, err := rndr.Commands(conf.Init)
+	if err != nil {
+		return err
+	}
+
 	cmds, err := rndr.Commands(conf.Processes)
 	if err != nil {
 		return err
@@ -74,6 +80,9 @@ func (cli *RunCmd) Run() error {
 	// Create a process supervisor, registering
 	// all process & reload commands.
 	svisor := process.NewSupervisor(gctx)
+	for name, cmd := range inits {
+		svisor.RegisterInit(name, cmd)
+	}
 	for name, cmd := range cmds {
 		svisor.RegisterProcess(name, cmd)
 	}
