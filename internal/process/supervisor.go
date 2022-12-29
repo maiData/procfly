@@ -123,7 +123,7 @@ func (sv *svisor) runProcesses() error {
 	egrp, gctx := errgroup.WithContext(ctx)
 	for name, cmd := range sv.cmds {
 		_cmd, _name := cmd, name
-		egrp.Go(sv.withRestarts(gctx, _name, sv.run(gctx, _name, _cmd)))
+		egrp.Go(sv.withRestarts(gctx, sv.run(gctx, _name, _cmd)))
 	}
 
 	if err := egrp.Wait(); !errors.Is(err, context.Canceled) {
@@ -154,7 +154,7 @@ func (sv *svisor) setupStdout(name string, cmd *exec.Cmd) error {
 	return nil
 }
 
-func (sv *svisor) withRestarts(ctx context.Context, name string, fn func() error) func() error {
+func (sv *svisor) withRestarts(ctx context.Context, fn func() error) func() error {
 	return func() error {
 		for {
 			select {
@@ -162,7 +162,7 @@ func (sv *svisor) withRestarts(ctx context.Context, name string, fn func() error
 				return ctx.Err()
 			case <-time.After(1 * time.Second):
 				if err := fn(); errors.Is(err, ErrExitedWithCode) || errors.Is(err, ErrExitedWithError) {
-					sv.Logf("procfly", "Restarting %s after it exited with an error: %s", name, err.Error())
+					sv.Logf("procfly", "Restarting process: %s", err.Error())
 					continue
 				}
 				return nil

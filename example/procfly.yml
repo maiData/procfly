@@ -10,6 +10,7 @@ init:
   say_hi: echo "Hello World"
 
 processes:
+  error: sh -c 'sleep 3 && echo error! && exit 1'
   nats: nats-server -js -m {{.Env.NATS_HTTP_PORT}} -c {{.Procfly.Root}}/nats.conf
   metrics: >-
     prometheus-nats-exporter -port 9222

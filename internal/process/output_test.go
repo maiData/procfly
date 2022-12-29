@@ -21,7 +21,8 @@ func ExampleMuxWriter() {
 
 	// Output:
 	// a | bc
-	// a | defghi
+	// a | def
+	// a | ghi
 	// ab | jkl
 	// ab | mno
 	// a  | pqr

@@ -47,7 +47,7 @@ func (mwf *muxWriterFactory) RegisterName(name string) (int, lipgloss.Style) {
 		mwf.pfxlen = len(name)
 	}
 	if _, ok := mwf.clr[name]; !ok {
-		mwf.clr[name] = colors[mwf.pfxlen%len(colors)]
+		mwf.clr[name] = colors[len(mwf.clr)%len(colors)]
 	}
 	return mwf.pfxlen, mwf.clr[name]
 }
@@ -61,6 +61,7 @@ func (mwf *muxWriterFactory) prefix(name string) []byte {
 func (mwf *muxWriterFactory) Writer(name string) io.Writer {
 	mwf.lck.Lock()
 	defer mwf.lck.Unlock()
+	mwf.RegisterName(name)
 	return &muxWriter{
 		muxWriterFactory: mwf,
 		buf:              new(bytes.Buffer),
@@ -78,41 +79,25 @@ func (mw *muxWriter) Write(p []byte) (int, error) {
 	mw.lck.Lock()
 	defer mw.lck.Unlock()
 
+	rdr := bytes.NewBuffer(p)
+
 	pre := mw.prefix(mw.name)
 
-	var beg, end int
-	for i := bytes.IndexRune(p, '\n'); beg < len(p) && i >= 0; i = bytes.IndexRune(p[beg:], '\n') {
-		if mw.buf.Len() == 0 {
-			_, err := mw.buf.Write(pre)
-			if err != nil {
-				return beg, err
-			}
+	count := 0
+	var line []byte
+	var err error
+	for line, err = rdr.ReadBytes('\n'); err == nil; line, err = rdr.ReadBytes('\n') {
+		if _, err := mw.dst.Write(append(pre, line...)); err != nil {
+			return count, err
 		}
-
-		end = beg + i
-		_, err := mw.buf.Write(p[beg : end+1])
-		if err != nil {
-			return beg, err
-		}
-		beg = end + 1
-
-		_, err = mw.buf.WriteTo(mw.dst)
-		if err != nil {
-			return end, err
-		}
+		count += len(line)
 	}
 
-	if end < len(p)-1 {
-		_, err := mw.buf.Write(pre)
-		if err != nil {
-			return beg, err
+	if len(line) > 0 {
+		if _, err := mw.dst.Write(append(pre, append(line, '\n')...)); err != nil {
+			return count, err
 		}
-
-		_, err = mw.buf.Write(p[end+1:])
-		if err != nil {
-			return end, err
-		}
+		count += len(line)
 	}
-
-	return len(p), nil
+	return count, nil
 }
