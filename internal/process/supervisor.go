@@ -42,7 +42,7 @@ type Supervisor interface {
 	Logf(name, message string, args ...any)
 }
 
-type svisor struct {
+type supervisor struct {
 	root  context.Context
 	sout  MuxWriter
 	lock  sync.Mutex
@@ -53,7 +53,7 @@ type svisor struct {
 }
 
 func NewSupervisor(ctx context.Context) Supervisor {
-	return &svisor{
+	return &supervisor{
 		root:  ctx,
 		sout:  NewMuxWriter(os.Stdout),
 		ctxs:  make(map[string]context.Context),
@@ -63,7 +63,7 @@ func NewSupervisor(ctx context.Context) Supervisor {
 	}
 }
 
-func (sv *svisor) RegisterInit(name string, cmd Command) {
+func (sv *supervisor) RegisterInit(name string, cmd Command) {
 	// We can pre-register known names to reduce the
 	// chances of the log prefix being resized during
 	// execution of the processes.
@@ -71,7 +71,7 @@ func (sv *svisor) RegisterInit(name string, cmd Command) {
 	sv.inits[name] = cmd
 }
 
-func (sv *svisor) RegisterProcess(name string, cmd Command) {
+func (sv *supervisor) RegisterProcess(name string, cmd Command) {
 	// We can pre-register known names to reduce the
 	// chances of the log prefix being resized during
 	// execution of the processes.
@@ -79,7 +79,7 @@ func (sv *svisor) RegisterProcess(name string, cmd Command) {
 	sv.cmds[name] = cmd
 }
 
-func (sv *svisor) RegisterReload(name string, cmd Command) {
+func (sv *supervisor) RegisterReload(name string, cmd Command) {
 	// We can pre-register known names to reduce the
 	// chances of the log prefix being resized during
 	// execution of the processes.
@@ -87,7 +87,7 @@ func (sv *svisor) RegisterReload(name string, cmd Command) {
 	sv.rlds[name] = cmd
 }
 
-func (sv *svisor) Run() error {
+func (sv *supervisor) Run() error {
 	if !sv.lock.TryLock() {
 		// If we can't acquire the lock, that means
 		// this supervisor is already running.
@@ -96,14 +96,18 @@ func (sv *svisor) Run() error {
 		defer sv.lock.Unlock()
 	}
 
-	if err := sv.runInits(); err != nil {
-		return err
+	if len(sv.inits) > 0 {
+		sv.Log("procfly", "Running initializers.")
+		if err := sv.runInits(); err != nil {
+			return err
+		}
+		sv.Log("procfly", "Initializers complete.")
 	}
 
 	return sv.runProcesses()
 }
 
-func (sv *svisor) runInits() error {
+func (sv *supervisor) runInits() error {
 	// Init commands should take < 10s
 	ctx, cancel := context.WithTimeout(sv.root, 10*time.Second)
 	defer cancel()
@@ -116,7 +120,7 @@ func (sv *svisor) runInits() error {
 	return egrp.Wait()
 }
 
-func (sv *svisor) runProcesses() error {
+func (sv *supervisor) runProcesses() error {
 	ctx, cancel := context.WithCancel(sv.root)
 	defer cancel()
 
@@ -132,7 +136,7 @@ func (sv *svisor) runProcesses() error {
 	return nil
 }
 
-func (sv *svisor) setupStdout(name string, cmd *exec.Cmd) error {
+func (sv *supervisor) setupStdout(name string, cmd *exec.Cmd) error {
 	pseu, term, err := pty.Open()
 	if err != nil {
 		return err
@@ -154,7 +158,7 @@ func (sv *svisor) setupStdout(name string, cmd *exec.Cmd) error {
 	return nil
 }
 
-func (sv *svisor) withRestarts(ctx context.Context, fn func() error) func() error {
+func (sv *supervisor) withRestarts(ctx context.Context, fn func() error) func() error {
 	return func() error {
 		for {
 			select {
@@ -171,7 +175,7 @@ func (sv *svisor) withRestarts(ctx context.Context, fn func() error) func() erro
 	}
 }
 
-func (sv *svisor) run(ctx context.Context, name string, command Command) func() error {
+func (sv *supervisor) run(ctx context.Context, name string, command Command) func() error {
 	return func() error {
 		cmd := command.Exec()
 
@@ -234,7 +238,7 @@ func (sv *svisor) run(ctx context.Context, name string, command Command) func() 
 	}
 }
 
-func (sv *svisor) Reload() error {
+func (sv *supervisor) Reload() error {
 	if sv.lock.TryLock() {
 		defer sv.lock.Unlock()
 		return ErrNotRunning
@@ -259,10 +263,10 @@ func (sv *svisor) Reload() error {
 	return err
 }
 
-func (sv *svisor) Log(name, message string) {
+func (sv *supervisor) Log(name, message string) {
 	fmt.Fprintln(sv.sout.Writer(name), message)
 }
 
-func (sv *svisor) Logf(name, message string, args ...any) {
+func (sv *supervisor) Logf(name, message string, args ...any) {
 	fmt.Fprintf(sv.sout.Writer(name), message, args...)
 }

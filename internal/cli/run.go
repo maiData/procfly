@@ -106,7 +106,7 @@ func watchEnv(ctx context.Context, svisor process.Supervisor, paths file.Paths, 
 	return func() error {
 		t := time.NewTicker(5 * time.Second)
 		defer t.Stop()
-		prev := renderer.Hash()
+		phash := renderer.Hash()
 
 		for {
 			select {
@@ -129,10 +129,10 @@ func watchEnv(ctx context.Context, svisor process.Supervisor, paths file.Paths, 
 
 				// If the hash of our templated files hasn't changed,
 				// we should skip running our reloaders.
-				if hash := renderer.Hash(); hash == prev {
+				if hash := renderer.Hash(); hash == phash {
 					continue
 				} else {
-					prev = hash
+					phash = hash
 				}
 
 				svisor.Log("procfly", "Running reloaders.")
