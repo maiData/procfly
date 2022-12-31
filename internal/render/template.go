@@ -86,6 +86,7 @@ func (r *Renderer) InlineTemplates(tmpls map[string]string) error {
 		if err != nil {
 			return err
 		}
+		defer f.Close()
 
 		if err := r.render(tmpl, true, f); err != nil {
 			return err
@@ -105,6 +106,7 @@ func (r *Renderer) TemplateFiles(tmpls map[string]string) error {
 		if err != nil {
 			return err
 		}
+		defer f.Close()
 
 		if err := r.render(string(tmpl), true, f); err != nil {
 			return err
@@ -129,9 +131,11 @@ func (r *Renderer) render(tmpl string, hash bool, file io.Writer) (err error) {
 		t = templates[name]
 	}
 
-	var w io.Writer = file
+	var w io.Writer
 	if hash {
 		w = io.MultiWriter(r.hash, file)
+	} else {
+		w = file
 	}
 
 	if err := t.Execute(w, r.vars); err != nil {

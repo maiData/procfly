@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -135,7 +136,9 @@ func watchEnv(ctx context.Context, svisor process.Supervisor, paths file.Paths, 
 				}
 
 				svisor.Log("procfly", "Running reloaders.")
-				if err := svisor.Reload(); err != nil {
+				if err := svisor.Reload(); err == nil || errors.Is(err, process.ErrNotRunning) {
+					continue
+				} else {
 					return err
 				}
 			}

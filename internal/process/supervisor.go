@@ -183,21 +183,17 @@ func (sv *svisor) run(ctx context.Context, name string, command Command) func() 
 			return err
 		}
 
-		if cmd.Process == nil {
-			return ErrNotRunning
-		}
-
-		procStateCh := make(chan *os.ProcessState)
+		sch := make(chan *os.ProcessState)
 
 		go func() {
 			// Wait for the process to exit. Once it has, we can
 			// cancel the context that's waiting for it.
 			state, err := cmd.Process.Wait()
 			if err != nil {
-				close(procStateCh)
+				close(sch)
 			} else {
-				procStateCh <- state
-				close(procStateCh)
+				sch <- state
+				close(sch)
 			}
 		}()
 
@@ -208,7 +204,7 @@ func (sv *svisor) run(ctx context.Context, name string, command Command) func() 
 			if err := cmd.Process.Signal(os.Interrupt); err != nil {
 				return err
 			}
-		case state, ok := <-procStateCh:
+		case state, ok := <-sch:
 			// The process exited before we told it to. If it
 			// had a non-zero exit code, we should return an error
 			// stating that.
@@ -230,7 +226,7 @@ func (sv *svisor) run(ctx context.Context, name string, command Command) func() 
 			// return the one from the context that caused it.
 			_ = cmd.Process.Kill()
 			return ctx.Err()
-		case <-procStateCh:
+		case <-sch:
 			// Sending the signal managed to shut down the process
 			// gracefully. We can exit without an error.
 			return nil
