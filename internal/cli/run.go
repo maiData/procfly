@@ -41,11 +41,6 @@ func (cli *RunCmd) Run() error {
 		return err
 	}
 
-	err = validateReloaderNames(conf.Processes, conf.Reloaders)
-	if err != nil {
-		return err
-	}
-
 	vars, err := render.LoadVars(paths)
 	if err != nil {
 		return err
@@ -182,15 +177,6 @@ func validateTemplateNames(a, b map[string]string) error {
 	for k := range b {
 		if _, ok := a[k]; ok {
 			return fmt.Errorf("multiple templates: %s", k)
-		}
-	}
-	return nil
-}
-
-func validateReloaderNames(proc, rld map[string]string) error {
-	for k := range rld {
-		if _, ok := proc[k]; !ok {
-			return fmt.Errorf("reload: unknown proc: %s", k)
 		}
 	}
 	return nil
