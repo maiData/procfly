@@ -25,7 +25,10 @@ func AllPeerAllocIDs(ctx context.Context, appName string) ([]string, error) {
 
 	allocIDs := make([]string, 0)
 	for _, r := range raw {
-		allocIDs = append(allocIDs, strings.Split(r, ",")...)
+		alloc, _, ok := strings.Cut(r, " ")
+		if ok {
+			allocIDs = append(allocIDs, alloc)
+		}
 	}
 
 	// Make sure we have the current instance's allocation ID in the list
