@@ -81,14 +81,14 @@ func (r *Renderer) Commands(tmpls map[string]string) (map[string]process.Command
 }
 
 func (r *Renderer) InlineTemplates(tmpls map[string]string) error {
-	for file, tmpl := range tmpls {
+	for _, file := range util.StableIter(tmpls) {
 		f, err := r.paths.Open(file, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0660)
 		if err != nil {
 			return err
 		}
 		defer f.Close()
 
-		if err := r.render(tmpl, true, f); err != nil {
+		if err := r.render(tmpls[file], true, f); err != nil {
 			return err
 		}
 	}
@@ -96,8 +96,8 @@ func (r *Renderer) InlineTemplates(tmpls map[string]string) error {
 }
 
 func (r *Renderer) TemplateFiles(tmpls map[string]string) error {
-	for file, tmplf := range tmpls {
-		tmpl, err := r.paths.Read(tmplf)
+	for _, file := range util.StableIter(tmpls) {
+		tmpl, err := r.paths.Read(tmpls[file])
 		if err != nil {
 			return err
 		}
