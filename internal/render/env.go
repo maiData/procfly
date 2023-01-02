@@ -51,13 +51,21 @@ func loadEnv() EnvVars {
 }
 
 type FlyVars struct {
-	Host           string
-	AppName        string
-	Region         string
-	GatewayRegions []string
-	IP             string
-	Peers          []string
-	ServerName     string
+	// Local hostname (localhost / fly-local-6pn)
+	Host string
+	// The deployed app's name
+	AppName string
+	// The region that this instance is deployed in
+	Region string
+	// All regions that this app is deployed in
+	AllRegions []string
+	// The IP address for this instance
+	IP string
+	// All IPs for the deployed app
+	PeerIPs      []string
+	ServerName   string
+	AllocID      string
+	PeerAllocIDs []string
 }
 
 func loadFlyEnv() (env FlyVars, err error) {
@@ -71,16 +79,21 @@ func loadFlyEnv() (env FlyVars, err error) {
 		env.Region = "local"
 	}
 
+	env.AllocID = os.Getenv("FLY_ALLOC_ID")
+	if env.AllocID == "" {
+		env.AllocID = "local-id"
+	}
+
 	env.AppName = os.Getenv("FLY_APP_NAME")
 	if env.AppName == "" {
 		env.Host = "localhost"
 		env.AppName = "local"
-		env.GatewayRegions = []string{"local"}
+		env.AllRegions = []string{"local"}
 		return
 	}
 
 	env.Host = "fly-local-6pn"
-	if env.GatewayRegions, err = privnet.GetRegions(
+	if env.AllRegions, err = privnet.GetRegions(
 		context.Background(),
 		env.AppName,
 	); err != nil {
@@ -93,19 +106,28 @@ func loadFlyEnv() (env FlyVars, err error) {
 		env.IP = ip.String()
 	}
 
-	if ips, err := privnet.AllPeers(
+	if ips, err := privnet.AllPeerIPs(
 		context.Background(),
 		env.AppName,
 	); err != nil {
 		return env, err
 	} else {
-		env.Peers = make([]string, len(ips))
+		env.PeerIPs = make([]string, len(ips))
 		for i, ip := range ips {
-			env.Peers[i] = ip.String()
+			env.PeerIPs[i] = ip.String()
 		}
 	}
 
+	if allocIDs, err := privnet.AllPeerAllocIDs(
+		context.Background(),
+		env.AppName,
+	); err != nil {
+		return env, err
+	} else {
+		env.PeerAllocIDs = allocIDs
+	}
+
 	// easier to compare
-	sort.Strings(env.GatewayRegions)
+	sort.Strings(env.AllRegions)
 	return
 }

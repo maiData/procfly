@@ -7,67 +7,60 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"golang.org/x/exp/slices"
 )
 
-func AllPeers(ctx context.Context, appName string) ([]net.IPAddr, error) {
+// Look up the 6PN addresses for all instances of the given app
+func AllPeerIPs(ctx context.Context, appName string) ([]net.IPAddr, error) {
 	return Get6PN(ctx, fmt.Sprintf("%s.internal", appName))
 }
 
-func GetRegions(ctx context.Context, appName string) ([]string, error) {
-	nameserver := os.Getenv("FLY_NAMESERVER")
-	if nameserver == "" {
-		nameserver = "fdaa::3"
+// Load all allocation IDs from the vms.{app}.internal DNS record
+func AllPeerAllocIDs(ctx context.Context, appName string) ([]string, error) {
+	raw, err := newResolver().LookupTXT(ctx, fmt.Sprintf("vms.%s.internal", appName))
+	if err != nil {
+		return nil, err
 	}
-	nameserver = net.JoinHostPort(nameserver, "53")
-	r := &net.Resolver{
-		PreferGo: true,
-		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-			d := net.Dialer{
-				Timeout: 1 * time.Second,
-			}
-			return d.DialContext(ctx, "udp6", nameserver)
-		},
-	}
-	hostname := fmt.Sprintf("regions.%s.internal", appName)
-	raw, err := r.LookupTXT(ctx, hostname)
 
+	allocIDs := make([]string, 0)
+	for _, r := range raw {
+		allocIDs = append(allocIDs, strings.Split(r, ",")...)
+	}
+
+	// Make sure we have the current instance's allocation ID in the list
+	allocID := os.Getenv("FLY_ALLOC_ID")
+	_, found := slices.BinarySearch(allocIDs, os.Getenv("FLY_ALLOC_ID"))
+	if allocID == "" || found {
+		return allocIDs, nil
+	}
+
+	return append(allocIDs, allocID), nil
+}
+
+// Load all regions the app is deployed in, from the regions.{app}.internal DNS record
+func GetRegions(ctx context.Context, appName string) ([]string, error) {
+	raw, err := newResolver().LookupTXT(ctx, fmt.Sprintf("regions.%s.internal", appName))
 	if err != nil {
 		return nil, err
 	}
 
 	regions := make([]string, 0)
-
 	for _, r := range raw {
 		regions = append(regions, strings.Split(r, ",")...)
 	}
-
 	return regions, nil
 }
 
 func Get6PN(ctx context.Context, hostname string) ([]net.IPAddr, error) {
-	nameserver := os.Getenv("FLY_NAMESERVER")
-	if nameserver == "" {
-		nameserver = "fdaa::3"
-	}
-	nameserver = net.JoinHostPort(nameserver, "53")
-	r := &net.Resolver{
-		PreferGo: true,
-		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-			d := net.Dialer{
-				Timeout: 1 * time.Second,
-			}
-			return d.DialContext(ctx, "udp6", nameserver)
-		},
-	}
-	ips, err := r.LookupIPAddr(ctx, hostname)
-
+	res := newResolver()
+	ips, err := res.LookupIPAddr(ctx, hostname)
 	if err != nil {
 		return ips, err
 	}
 
 	// make sure we're including the local ip, just in case it's not in service discovery yet
-	local, err := r.LookupIPAddr(ctx, "fly-local-6pn")
-
+	local, err := res.LookupIPAddr(ctx, "fly-local-6pn")
 	if err != nil || len(local) < 1 {
 		return ips, err
 	}
@@ -96,4 +89,26 @@ func PrivateIPv6() (net.IP, error) {
 	}
 
 	return net.ParseIP("127.0.0.1"), nil
+}
+
+func newResolver() *net.Resolver {
+	// Get the nameserver to use from the environment
+	// or fall back to fdaa::3
+	nameserver := os.Getenv("FLY_NAMESERVER")
+	if nameserver == "" {
+		nameserver = "fdaa::3"
+	}
+	nameserver = net.JoinHostPort(nameserver, "53")
+
+	// We can use this DNS resolver to look up fly-based DNS
+	// records. This can be used for clustering information
+	return &net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			d := net.Dialer{
+				Timeout: 1 * time.Second,
+			}
+			return d.DialContext(ctx, "udp6", nameserver)
+		},
+	}
 }
