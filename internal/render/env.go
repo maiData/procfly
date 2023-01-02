@@ -71,7 +71,7 @@ type FlyVars struct {
 func loadFlyEnv() (env FlyVars, err error) {
 	env.ServerName = os.Getenv("FLY_ALLOC_ID")
 	if env.ServerName == "" {
-		env.ServerName = "local"
+		env.ServerName = "local-id"
 	}
 
 	env.Region = os.Getenv("FLY_REGION")
@@ -79,7 +79,7 @@ func loadFlyEnv() (env FlyVars, err error) {
 		env.Region = "local"
 	}
 
-	env.AllocID = os.Getenv("FLY_ALLOC_ID")
+	env.AllocID = env.ServerName[:8]
 	if env.AllocID == "" {
 		env.AllocID = "local-id"
 	}

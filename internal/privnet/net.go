@@ -33,7 +33,7 @@ func AllPeerAllocIDs(ctx context.Context, appName string) ([]string, error) {
 
 	// Make sure we have the current instance's allocation ID in the list
 	allocID := os.Getenv("FLY_ALLOC_ID")
-	_, found := slices.BinarySearch(allocIDs, os.Getenv("FLY_ALLOC_ID"))
+	_, found := slices.BinarySearch(allocIDs, allocID[:8])
 	if allocID == "" || found {
 		return allocIDs, nil
 	}
