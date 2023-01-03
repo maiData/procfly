@@ -7,8 +7,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"golang.org/x/exp/slices"
 )
 
 // Look up the 6PN addresses for all instances of the given app
@@ -33,11 +31,13 @@ func AllPeerAllocIDs(ctx context.Context, appName string) ([]string, error) {
 
 	// Make sure we have the current instance's allocation ID in the list
 	allocID := os.Getenv("FLY_ALLOC_ID")
-	_, found := slices.BinarySearch(allocIDs, allocID[:8])
-	if allocID == "" || found {
-		return allocIDs, nil
+	for _, aid := range allocIDs {
+		if aid == allocID[:8] {
+			// We found the allocation ID, so we can just return
+			// the existing slice
+			return allocIDs, nil
+		}
 	}
-
 	return append(allocIDs, allocID), nil
 }
 

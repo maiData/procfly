@@ -4,8 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/gob"
 	"encoding/hex"
-
-	"golang.org/x/exp/slices"
 )
 
 func Hash(values ...any) (string, error) {
@@ -16,15 +14,4 @@ func Hash(values ...any) (string, error) {
 		}
 	}
 	return hex.EncodeToString(hash.Sum(nil)), nil
-}
-
-func StableIter[V any](m map[string]V) []string {
-	var idx int
-	keys := make([]string, len(m))
-	for k := range m {
-		keys[idx] = k
-		idx++
-	}
-	slices.Sort(keys)
-	return keys
 }
