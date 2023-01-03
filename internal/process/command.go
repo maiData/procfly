@@ -47,8 +47,12 @@ func (c *Command) UnmarshalText(p []byte) error {
 	return nil
 }
 
+func (c Command) String() string {
+	return fmt.Sprintf("%s %s", c.Name, strings.Join(c.Args, " "))
+}
+
 func (c Command) MarshalText() ([]byte, error) {
-	return []byte(fmt.Sprintf("%s %s", c.Name, strings.Join(c.Args, " "))), nil
+	return []byte(c.String()), nil
 }
 
 func (c Command) Exec() *exec.Cmd {

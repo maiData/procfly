@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/creack/pty"
 	"golang.org/x/sync/errgroup"
 )
@@ -127,7 +128,7 @@ func (sv *supervisor) runProcesses() error {
 	egrp, gctx := errgroup.WithContext(ctx)
 	for name, cmd := range sv.cmds {
 		_cmd, _name := cmd, name
-		egrp.Go(sv.withRestarts(gctx, sv.run(gctx, _name, _cmd)))
+		egrp.Go(sv.withRestarts(gctx, _name, sv.run(gctx, _name, _cmd)))
 	}
 
 	if err := egrp.Wait(); !errors.Is(err, context.Canceled) {
@@ -158,17 +159,25 @@ func (sv *supervisor) setupStdout(name string, cmd *exec.Cmd) error {
 	return nil
 }
 
-func (sv *supervisor) withRestarts(ctx context.Context, fn func() error) func() error {
+func (sv *supervisor) withRestarts(ctx context.Context, name string, fn func() error) func() error {
+	boff := backoff.NewExponentialBackOff()
+	boff.MaxInterval = 15 * time.Second
+	boff.Multiplier = 2
+	boff.InitialInterval = 1 * time.Second
+
 	return func() error {
 		for {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(1 * time.Second):
-				if err := fn(); errors.Is(err, ErrExitedWithCode) || errors.Is(err, ErrExitedWithError) {
-					sv.Logf("procfly", "Restarting process: %s", err.Error())
+			if err := fn(); errors.Is(err, ErrExitedWithCode) || errors.Is(err, ErrExitedWithError) {
+				nboff := boff.NextBackOff()
+				sv.Logf(name, err.Error())
+				sv.Logf("procfly", "Waiting %s before restarting %s", nboff, name)
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(nboff):
 					continue
 				}
+			} else {
 				return nil
 			}
 		}
@@ -177,6 +186,7 @@ func (sv *supervisor) withRestarts(ctx context.Context, fn func() error) func() 
 
 func (sv *supervisor) run(ctx context.Context, name string, command Command) func() error {
 	return func() error {
+		sv.Logf("procfly", "Start %s: %s", name, command)
 		cmd := command.Exec()
 
 		if err := sv.setupStdout(name, cmd); err != nil {

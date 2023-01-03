@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/alecthomas/kong v0.7.1
+	github.com/cenkalti/backoff/v4 v4.2.0
 	github.com/charmbracelet/lipgloss v0.6.0
 	github.com/creack/pty v1.1.18
 	github.com/emm035/gravel v0.0.0-20221217035053-8035c936f6c3
