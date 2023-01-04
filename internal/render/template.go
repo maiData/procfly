@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"text/template"
-	"time"
 
 	"github.com/emm035/procfly/internal/file"
 	"github.com/emm035/procfly/internal/process"
@@ -16,10 +15,6 @@ import (
 )
 
 var templates = make(map[string]*template.Template)
-
-var funcs = template.FuncMap{
-	"timestamp": time.Now,
-}
 
 type Renderer struct {
 	paths file.Paths
