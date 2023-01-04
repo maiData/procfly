@@ -25,20 +25,12 @@ func AllPeerAllocIDs(ctx context.Context, appName string) ([]string, error) {
 	for _, r := range raw {
 		alloc, _, ok := strings.Cut(r, " ")
 		if ok {
-			allocIDs = append(allocIDs, alloc)
+			// We should truncate the alloc IDs to the 8 character
+			// prefix that is used in fly's VM DNS.
+			allocIDs = append(allocIDs, alloc[:8])
 		}
 	}
-
-	// Make sure we have the current instance's allocation ID in the list
-	allocID := os.Getenv("FLY_ALLOC_ID")
-	for _, aid := range allocIDs {
-		if aid == allocID[:8] {
-			// We found the allocation ID, so we can just return
-			// the existing slice
-			return allocIDs, nil
-		}
-	}
-	return append(allocIDs, allocID), nil
+	return allocIDs, nil
 }
 
 // Load all regions the app is deployed in, from the regions.{app}.internal DNS record

@@ -125,6 +125,17 @@ func loadFlyEnv() (env FlyVars, err error) {
 		return env, err
 	} else {
 		env.PeerAllocIDs = allocIDs
+		// Make sure we have the current instance's allocation ID in the list
+		var found bool
+		for _, aid := range allocIDs {
+			if aid == env.AllocID {
+				// We found the allocation ID, so we don't need to add it
+				found = true
+			}
+		}
+		if !found {
+			env.PeerAllocIDs = append(env.PeerAllocIDs, env.AllocID)
+		}
 	}
 
 	// easier to compare

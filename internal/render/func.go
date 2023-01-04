@@ -3,7 +3,6 @@ package render
 import (
 	"context"
 	"fmt"
-	"net"
 	"text/template"
 	"time"
 
@@ -25,14 +24,9 @@ func lookupApp(app string) (vars AppVars, err error) {
 		return
 	}
 
-	vars.VmAddrs = make([]string, len(vars.AllocIDs))
+	vars.VMAddrs = make([]string, len(vars.AllocIDs))
 	for idx, allocID := range vars.AllocIDs {
-		vars.VmAddrs[idx] = fmt.Sprintf("%s.vm.%s.internal", allocID, app)
-	}
-
-	vars.IPs, err = privnet.AllPeerIPs(ctx, app)
-	if err != nil {
-		return
+		vars.VMAddrs[idx] = fmt.Sprintf("%s.vm.%s.internal", allocID, app)
 	}
 
 	return
@@ -40,7 +34,6 @@ func lookupApp(app string) (vars AppVars, err error) {
 
 type AppVars struct {
 	Name     string
-	IPs      []net.IPAddr
 	AllocIDs []string
-	VmAddrs  []string
+	VMAddrs  []string
 }
