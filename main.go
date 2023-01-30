@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/alecthomas/kong"
-	"github.com/emm035/procfly/internal/cli"
+	"github.com/maidata/procfly/internal/cli"
 )
 
 type Cli struct {

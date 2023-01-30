@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/emm035/procfly/internal/process"
+	"github.com/maidata/procfly/internal/process"
 )
 
 var cases = []struct {

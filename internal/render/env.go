@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/emm035/procfly/internal/file"
-	"github.com/emm035/procfly/internal/privnet"
+	"github.com/maidata/procfly/internal/file"
+	"github.com/maidata/procfly/internal/privnet"
 )
 
 type Vars struct {

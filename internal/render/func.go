@@ -6,7 +6,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/emm035/procfly/internal/privnet"
+	"github.com/maidata/procfly/internal/privnet"
 )
 
 var funcs = template.FuncMap{

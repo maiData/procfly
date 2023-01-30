@@ -9,9 +9,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/emm035/procfly/internal/file"
-	"github.com/emm035/procfly/internal/process"
-	"github.com/emm035/procfly/internal/render"
+	"github.com/maidata/procfly/internal/file"
+	"github.com/maidata/procfly/internal/process"
+	"github.com/maidata/procfly/internal/render"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
 )

@@ -12,7 +12,7 @@ RUN go install .
 
 FROM busybox:1.35-glibc as busybox
 
-FROM emm035/procfly:latest
+FROM maidata/procfly:latest
 
 COPY --from=nats /nats-server /bin/nats-server
 COPY --from=nats-metrics /prometheus-nats-exporter /bin/prometheus-nats-exporter

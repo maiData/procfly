@@ -9,9 +9,9 @@ import (
 	"os"
 	"text/template"
 
-	"github.com/emm035/procfly/internal/file"
-	"github.com/emm035/procfly/internal/process"
-	"github.com/emm035/procfly/internal/util"
+	"github.com/maidata/procfly/internal/file"
+	"github.com/maidata/procfly/internal/process"
+	"github.com/maidata/procfly/internal/util"
 )
 
 var templates = make(map[string]*template.Template)

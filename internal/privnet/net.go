@@ -16,18 +16,20 @@ func AllPeerIPs(ctx context.Context, appName string) ([]net.IPAddr, error) {
 
 // Load all allocation IDs from the vms.{app}.internal DNS record
 func AllPeerAllocIDs(ctx context.Context, appName string) ([]string, error) {
-	raw, err := newResolver().LookupTXT(ctx, fmt.Sprintf("vms.%s.internal", appName))
+	records, err := newResolver().LookupTXT(ctx, fmt.Sprintf("vms.%s.internal", appName))
 	if err != nil {
 		return nil, err
 	}
 
 	allocIDs := make([]string, 0)
-	for _, r := range raw {
-		alloc, _, ok := strings.Cut(r, " ")
-		if ok {
-			// We should truncate the alloc IDs to the 8 character
-			// prefix that is used in fly's VM DNS.
-			allocIDs = append(allocIDs, alloc[:8])
+	for _, record := range records {
+		for _, alloc := range strings.Split(record, ",") {
+			allocID, _, ok := strings.Cut(alloc, " ")
+			if ok {
+				// We should truncate the alloc IDs to the 8 character
+				// prefix that is used in fly's VM DNS.
+				allocIDs = append(allocIDs, allocID[:8])
+			}
 		}
 	}
 	return allocIDs, nil
@@ -35,14 +37,14 @@ func AllPeerAllocIDs(ctx context.Context, appName string) ([]string, error) {
 
 // Load all regions the app is deployed in, from the regions.{app}.internal DNS record
 func GetRegions(ctx context.Context, appName string) ([]string, error) {
-	raw, err := newResolver().LookupTXT(ctx, fmt.Sprintf("regions.%s.internal", appName))
+	records, err := newResolver().LookupTXT(ctx, fmt.Sprintf("regions.%s.internal", appName))
 	if err != nil {
 		return nil, err
 	}
 
 	regions := make([]string, 0)
-	for _, r := range raw {
-		regions = append(regions, strings.Split(r, ",")...)
+	for _, record := range records {
+		regions = append(regions, strings.Split(record, ",")...)
 	}
 	return regions, nil
 }

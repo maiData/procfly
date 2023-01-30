@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/emm035/procfly/internal/process"
+	"github.com/maidata/procfly/internal/process"
 )
 
 func ExampleMuxWriter() {
