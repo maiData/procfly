@@ -7,6 +7,7 @@ import (
 )
 
 type VersionCmd struct {
+	Debug bool `name:"debug" short:"d"`
 }
 
 func (cmd *VersionCmd) Run() error {
@@ -14,6 +15,10 @@ func (cmd *VersionCmd) Run() error {
 	if !ok {
 		return errors.New("unable to read build information")
 	}
-	fmt.Printf("%+v\n", bi)
+	if cmd.Debug {
+		fmt.Printf("%+v\n", bi)
+	} else {
+		fmt.Println(bi.Main.Version)
+	}
 	return nil
 }
