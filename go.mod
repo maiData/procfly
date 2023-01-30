@@ -1,4 +1,4 @@
-module github.com/emm035/procfly
+module github.com/maidata/procfly
 
 go 1.19
 
