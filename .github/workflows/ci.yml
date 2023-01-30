@@ -1,7 +1,5 @@
 on:
   push:
-    tags-ignore:
-    - '**'
 
 jobs:
   build:
