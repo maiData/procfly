@@ -7,7 +7,6 @@ require (
 	github.com/cenkalti/backoff/v4 v4.2.0
 	github.com/charmbracelet/lipgloss v0.6.0
 	github.com/creack/pty v1.1.18
-	github.com/emm035/gravel v0.0.0-20221217035053-8035c936f6c3
 	golang.org/x/sync v0.1.0
 	gopkg.in/yaml.v3 v3.0.1
 )
