@@ -232,8 +232,8 @@ func (sv *supervisor) run(ctx context.Context, name string, command Command) fun
 		}
 
 		select {
-		case <-time.After(5 * time.Second):
-			// The process is still running after 5 seconds, so
+		case <-time.After(30 * time.Second):
+			// The process is still running after 30 seconds, so
 			// we need to kill it more forcefully. If we're in this
 			// branch, that means the process is being killed, so we
 			// should ignore the error message from killing, and
