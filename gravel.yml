@@ -1,6 +1,0 @@
-build: docker
-version:
-  strategy: date
-docker:
-  registry: ghcr.io
-  org: emm035
